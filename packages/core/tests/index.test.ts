@@ -1,58 +1,106 @@
 import { expect, test, vi } from "vite-plus/test";
 import { createStore } from "../src/index.ts";
 
-test("stores and reads values", () => {
-  const store = createStore<number>();
+test("reads nested values from the initial state", () => {
+  const store = createStore({
+    user: {
+      name: "Ada",
+      age: 36,
+    },
+  });
 
-  store.set("count", 1);
-
-  expect(store.has("count")).toBe(true);
-  expect(store.get("count")).toBe(1);
+  expect(store.has("user")).toBe(true);
+  expect(store.get(["user", "name"])).toBe("Ada");
 });
 
-test("removes values", () => {
-  const store = createStore<number>();
+test("updates nested object values by path", () => {
+  const store = createStore({
+    user: {
+      name: "Ada",
+    },
+  });
 
-  store.set("count", 1);
-  store.remove("count");
+  store.set(["user", "name"], "Grace");
 
-  expect(store.has("count")).toBe(false);
-  expect(store.get("count")).toBeUndefined();
+  expect(store.get("user")).toEqual({ name: "Grace" });
+  expect(store.get(["user", "name"])).toBe("Grace");
 });
 
-test("notifies subscribers on set and remove", () => {
-  const store = createStore<number>();
-  const listener = vi.fn();
+test("updates nested array values by path", () => {
+  const store = createStore({
+    todos: [{ title: "Draft" }],
+  });
 
-  store.subscribe("count", listener);
-  store.set("count", 1);
-  store.remove("count");
+  store.set(["todos", "0", "title"], "Ship");
 
-  expect(listener).toHaveBeenNthCalledWith(1, "count", 1);
-  expect(listener).toHaveBeenNthCalledWith(2, "count", undefined);
+  expect(store.get(["todos", "0", "title"])).toBe("Ship");
+  expect(store.get("todos")).toEqual([{ title: "Ship" }]);
+});
+
+test("removes nested object values by path", () => {
+  const store = createStore({
+    user: {
+      name: "Ada",
+      age: 36,
+    },
+  });
+
+  store.remove(["user", "age"]);
+
+  expect(store.has(["user", "age"])).toBe(false);
+  expect(store.get("user")).toEqual({ name: "Ada" });
+});
+
+test("removes array items by path", () => {
+  const store = createStore({
+    todos: ["draft", "ship", "celebrate"],
+  });
+
+  store.remove(["todos", "1"]);
+
+  expect(store.get("todos")).toEqual(["draft", "celebrate"]);
+  expect(store.has(["todos", "2"])).toBe(false);
+});
+
+test("notifies exact and ancestor subscribers with current values", () => {
+  const store = createStore({
+    user: {
+      name: "Ada",
+      age: 36,
+    },
+  });
+  const userListener = vi.fn();
+  const nameListener = vi.fn();
+
+  store.subscribe("user", userListener);
+  store.subscribe(["user", "name"], nameListener);
+
+  store.set(["user", "name"], "Grace");
+
+  expect(userListener).toHaveBeenCalledWith(
+    "user",
+    { name: "Grace", age: 36 },
+    {
+      user: { name: "Grace", age: 36 },
+    },
+  );
+  expect(nameListener).toHaveBeenCalledWith(["user", "name"], "Grace", {
+    user: { name: "Grace", age: 36 },
+  });
 });
 
 test("stops notifying after unsubscribe", () => {
-  const store = createStore<number>();
+  const store = createStore({
+    user: {
+      name: "Ada",
+    },
+  });
   const listener = vi.fn();
 
-  const unsubscribe = store.subscribe("count", listener);
+  const unsubscribe = store.subscribe(["user", "name"], listener);
 
   unsubscribe();
-  store.set("count", 1);
+  store.set(["user", "name"], "Grace");
 
   expect(listener).not.toHaveBeenCalled();
-});
-
-test("treats array keys as stable composite keys", () => {
-  const store = createStore<string>();
-  const listener = vi.fn();
-  const key = ["user", "name"];
-
-  store.subscribe(key, listener);
-  store.set(["user", "name"], "Ada");
-
-  expect(store.get(key)).toBe("Ada");
-  expect(store.has(["user", "name"])).toBe(true);
-  expect(listener).toHaveBeenCalledWith(["user", "name"], "Ada");
 });
