@@ -2,14 +2,17 @@ export type Key = string | string[];
 
 export type Path = string[];
 
-const KEY_SEPARATOR = "\u0000";
+const ARRAY_INDEX_PATTERN = /^(0|[1-9]\d*)$/;
+
+export class JsonPointerError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "JsonPointerError";
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function isArrayIndex(segment: string): boolean {
-  return /^\d+$/.test(segment);
 }
 
 function cloneContainer(
@@ -24,48 +27,80 @@ function cloneContainer(
     return { ...value };
   }
 
-  return isArrayIndex(nextSegment ?? "") ? [] : {};
+  return isValidArrayIndex(nextSegment ?? "") ? [] : {};
+}
+
+export function encodeToken(token: string): string {
+  return token.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
+export function decodeToken(token: string): string {
+  for (let index = 0; index < token.length; index += 1) {
+    if (token[index] !== "~") {
+      continue;
+    }
+
+    const next = token[index + 1];
+
+    if (next !== "0" && next !== "1") {
+      throw new JsonPointerError(`Invalid escape sequence in token: ${token}`);
+    }
+
+    index += 1;
+  }
+
+  return token.replaceAll("~1", "/").replaceAll("~0", "~");
+}
+
+export function parsePointer(pointer: string): Path {
+  if (pointer === "") {
+    return [];
+  }
+
+  if (!pointer.startsWith("/")) {
+    throw new JsonPointerError(`Invalid JSON pointer: ${pointer}`);
+  }
+
+  return pointer.slice(1).split("/").map(decodeToken);
+}
+
+export function stringifyPointer(path: Path): string {
+  if (path.length === 0) {
+    return "";
+  }
+
+  return `/${path.map(encodeToken).join("/")}`;
 }
 
 export function normalizeKey(key: Key): Path {
-  return Array.isArray(key) ? [...key] : [key];
+  return Array.isArray(key) ? [...key] : parsePointer(key);
 }
 
-export function serializePath(path: Path): string {
-  return path.join(KEY_SEPARATOR);
-}
-
-export function pathToKey(path: Path): Key {
-  return path.length === 1 ? path[0] : [...path];
+export function isValidArrayIndex(token: string): boolean {
+  return ARRAY_INDEX_PATTERN.test(token);
 }
 
 export function getAtPath(value: unknown, path: Path): unknown {
-  let current = value;
-
-  for (const segment of path) {
-    if (!isRecord(current) && !Array.isArray(current)) {
-      return undefined;
-    }
-
-    current = (current as Record<string, unknown>)[segment];
-  }
-
-  return current;
-}
-
-export function hasAtPath(value: unknown, path: Path): boolean {
   if (path.length === 0) {
-    return value !== undefined;
+    return value;
   }
 
   let current = value;
 
   for (const segment of path) {
     if (Array.isArray(current)) {
+      if (segment === "-") {
+        throw new JsonPointerError('Array index "-" does not resolve to an existing value');
+      }
+
+      if (!isValidArrayIndex(segment)) {
+        throw new JsonPointerError(`Invalid array index: ${segment}`);
+      }
+
       const index = Number(segment);
 
-      if (!Number.isInteger(index) || index < 0 || index >= current.length) {
-        return false;
+      if (index >= current.length) {
+        throw new JsonPointerError(`Path does not exist: ${stringifyPointer(path)}`);
       }
 
       current = current[index];
@@ -73,13 +108,26 @@ export function hasAtPath(value: unknown, path: Path): boolean {
     }
 
     if (!isRecord(current) || !(segment in current)) {
-      return false;
+      throw new JsonPointerError(`Path does not exist: ${stringifyPointer(path)}`);
     }
 
     current = current[segment];
   }
 
-  return true;
+  return current;
+}
+
+export function hasAtPath(value: unknown, path: Path): boolean {
+  try {
+    getAtPath(value, path);
+    return true;
+  } catch (error) {
+    if (error instanceof JsonPointerError) {
+      return false;
+    }
+
+    throw error;
+  }
 }
 
 export function setAtPath<T>(value: T | undefined, path: Path, nextValue: unknown): T {
@@ -94,19 +142,31 @@ export function setAtPath<T>(value: T | undefined, path: Path, nextValue: unknow
     const isLast = index === path.length - 1;
 
     if (Array.isArray(current)) {
-      const arrayIndex = Number(segment);
+      const isAppend = segment === "-";
+      const arrayIndex = isAppend ? current.length : Number(segment);
 
-      if (!Number.isInteger(arrayIndex) || arrayIndex < 0) {
-        throw new TypeError(`Invalid array index: ${segment}`);
+      if (!isAppend && !isValidArrayIndex(segment)) {
+        throw new JsonPointerError(`Invalid array index: ${segment}`);
       }
 
       if (isLast) {
-        current[arrayIndex] = nextValue;
+        if (isAppend) {
+          current.push(nextValue);
+        } else {
+          current[arrayIndex] = nextValue;
+        }
+
         break;
       }
 
       const child = cloneContainer(current[arrayIndex], path[index + 1]);
-      current[arrayIndex] = child;
+
+      if (isAppend) {
+        current.push(child);
+      } else {
+        current[arrayIndex] = child;
+      }
+
       current = child;
       continue;
     }
@@ -146,9 +206,13 @@ export function removeAtPath<T>(value: T | undefined, path: Path): T | undefined
     const isLast = index === path.length - 1;
 
     if (Array.isArray(current)) {
+      if (!isValidArrayIndex(segment)) {
+        return value;
+      }
+
       const arrayIndex = Number(segment);
 
-      if (!Number.isInteger(arrayIndex) || arrayIndex < 0 || arrayIndex >= current.length) {
+      if (arrayIndex >= current.length) {
         return value;
       }
 

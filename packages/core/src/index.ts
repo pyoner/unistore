@@ -2,15 +2,12 @@ import {
   getAtPath,
   hasAtPath,
   normalizeKey,
-  pathToKey,
   removeAtPath,
-  serializePath,
   setAtPath,
+  stringifyPointer,
   type Key,
   type Path,
 } from "./json-pointer.ts";
-
-export type { Key, Path } from "./json-pointer.ts";
 
 export type Unsubscribe = () => void;
 
@@ -30,18 +27,22 @@ type Subscription<T> = {
 };
 
 function getAncestorPaths(path: Path): Path[] {
-  return path.map((_, index) => path.slice(0, index + 1));
+  return [[], ...path.map((_, index) => path.slice(0, index + 1))];
 }
 
 export function createStore<T = unknown>(initialState?: T): Store<T> {
   let state = initialState;
   const listeners = new Map<string, Set<Subscription<T>>>();
 
+  function toPath(key: Key): Path {
+    return normalizeKey(key);
+  }
+
   function emit(path: Path): void {
     const visited = new Set<Listener<T>>();
 
     for (const currentPath of getAncestorPaths(path)) {
-      const subscriptions = listeners.get(serializePath(currentPath));
+      const subscriptions = listeners.get(stringifyPointer(currentPath));
 
       if (!subscriptions) {
         continue;
@@ -62,22 +63,22 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
 
   return {
     get(key) {
-      return getAtPath(state, normalizeKey(key));
+      return getAtPath(state, toPath(key));
     },
 
     has(key) {
-      return hasAtPath(state, normalizeKey(key));
+      return hasAtPath(state, toPath(key));
     },
 
     set(key, value) {
-      const path = normalizeKey(key);
+      const path = toPath(key);
 
       state = setAtPath(state, path, value);
       emit(path);
     },
 
     remove(key) {
-      const path = normalizeKey(key);
+      const path = toPath(key);
 
       if (!hasAtPath(state, path)) {
         return;
@@ -88,22 +89,22 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
     },
 
     subscribe(key, listener) {
-      const path = normalizeKey(key);
-      const serializedPath = serializePath(path);
-      const subscriptions = listeners.get(serializedPath) ?? new Set<Subscription<T>>();
+      const path = toPath(key);
+      const pointer = stringifyPointer(path);
+      const subscriptions = listeners.get(pointer) ?? new Set<Subscription<T>>();
       const subscription = {
-        key: pathToKey(path),
+        key: Array.isArray(key) ? [...key] : key,
         listener,
       };
 
       subscriptions.add(subscription);
-      listeners.set(serializedPath, subscriptions);
+      listeners.set(pointer, subscriptions);
 
       return () => {
         subscriptions.delete(subscription);
 
         if (subscriptions.size === 0) {
-          listeners.delete(serializedPath);
+          listeners.delete(pointer);
         }
       };
     },
