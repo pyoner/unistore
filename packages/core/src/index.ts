@@ -30,37 +30,11 @@ function getAncestorPaths(path: Path): Path[] {
   return [[], ...path.map((_, index) => path.slice(0, index + 1))];
 }
 
-function createRoot(path: Path): unknown {
-  const firstSegment = path[0];
-
-  if (firstSegment === undefined) {
-    return {};
-  }
-
-  return /^(0|[1-9]\d*|-)$/.test(firstSegment) ? [] : {};
-}
-
 export function createStore<T = unknown>(initialState?: T): Store<T> {
   let state = initialState;
   const listeners = new Map<string, Set<Subscription<T>>>();
 
-  function read(path: Path): unknown {
-    if (path.length === 0) {
-      return state;
-    }
-
-    if (state === undefined || state === null || typeof state !== "object") {
-      throw new Error(`Invalid reference token: ${path[0]}`);
-    }
-
-    return get(state as object, path);
-  }
-
   function readForEmit(path: Path): unknown {
-    if (path.length === 0) {
-      return state;
-    }
-
     return state !== undefined &&
       state !== null &&
       typeof state === "object" &&
@@ -94,61 +68,24 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
 
   return {
     get(key) {
-      return read(toPath(key));
+      return get(state as object, key);
     },
 
     has(key) {
-      const path = toPath(key);
-
-      if (path.length === 0) {
-        return state !== undefined;
-      }
-
-      return state !== undefined && state !== null && typeof state === "object"
-        ? has(state as object, path)
-        : false;
+      return has(state as object, key);
     },
 
     set(key, value) {
       const path = toPath(key);
 
-      if (path.length === 0) {
-        state = value as T;
-        emit(path);
-        return;
-      }
-
-      if (state === undefined || state === null || typeof state !== "object") {
-        state = createRoot(path) as T;
-      }
-
-      set(state as object, path, value);
+      set(state as object, key, value);
       emit(path);
     },
 
     remove(key) {
       const path = toPath(key);
 
-      if (path.length === 0) {
-        if (state === undefined) {
-          return;
-        }
-
-        state = undefined;
-        emit(path);
-        return;
-      }
-
-      if (
-        state === undefined ||
-        state === null ||
-        typeof state !== "object" ||
-        !has(state as object, path)
-      ) {
-        return;
-      }
-
-      remove(state as object, path);
+      remove(state as object, key);
       emit(path);
     },
 

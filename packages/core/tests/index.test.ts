@@ -41,14 +41,6 @@ test("updates nested array values by raw path segments", () => {
   expect(store.get("/todos")).toEqual([{ title: "Ship" }]);
 });
 
-test("creates mutable root objects for nested writes", () => {
-  const store = createStore();
-
-  store.set("/user/name", "Ada");
-
-  expect(store.get("")).toEqual({ user: { name: "Ada" } });
-});
-
 test("removes nested object values by RFC pointer string", () => {
   const initial = {
     user: {
@@ -76,17 +68,6 @@ test("removes array items by raw path segments", () => {
   expect(store.get("/todos")).toBe(initial.todos);
   expect(store.get("/todos")).toEqual(["draft", "celebrate"]);
   expect(store.has("/todos/2")).toBe(false);
-});
-
-test("can replace and remove the root value", () => {
-  const store = createStore({ user: { name: "Ada" } });
-
-  store.set("", { user: { name: "Grace" } });
-  expect(store.get("")).toEqual({ user: { name: "Grace" } });
-
-  store.remove("");
-  expect(store.get("")).toBeUndefined();
-  expect(store.has("")).toBe(false);
 });
 
 test("notifies exact, ancestor, and root subscribers with current values", () => {
@@ -146,4 +127,19 @@ test("throws library errors for invalid pointer strings", () => {
 
   expect(() => store.get("user")).toThrowError("Invalid JSON pointer: user");
   expect(() => store.set("user", "Grace")).toThrowError("Invalid JSON pointer: user");
+});
+
+test("matches library root-operation errors", () => {
+  const store = createStore({ user: { name: "Ada" } });
+
+  expect(() => store.set("", { user: { name: "Grace" } })).toThrowError(
+    "Can not set the root object",
+  );
+  expect(() => store.remove("")).toThrowError('Invalid JSON pointer for remove: ""');
+});
+
+test("does not create a missing root container", () => {
+  const store = createStore();
+
+  expect(() => store.set("/user/name", "Ada")).toThrow();
 });
