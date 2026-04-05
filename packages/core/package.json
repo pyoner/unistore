@@ -30,7 +30,11 @@
     "check": "vp check",
     "prepublishOnly": "vp run build"
   },
+  "dependencies": {
+    "json-pointer": "catalog:"
+  },
   "devDependencies": {
+    "@types/json-pointer": "catalog:",
     "@types/node": "^25.5.0",
     "@typescript/native-preview": "7.0.0-dev.20260328.1",
     "bumpp": "^11.0.1",

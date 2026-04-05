@@ -6,6 +6,12 @@ settings:
 
 catalogs:
   default:
+    '@types/json-pointer':
+      specifier: ^1.0.34
+      version: 1.0.34
+    json-pointer:
+      specifier: ^0.6.2
+      version: 0.6.2
     vite-plus:
       specifier: latest
       version: 0.1.15
@@ -35,7 +41,14 @@ importers:
         version: 0.1.15(@types/node@25.5.2)(@voidzero-dev/vite-plus-core@0.1.15(@types/node@25.5.2)(jiti@2.6.1)(typescript@5.9.3)(yaml@2.8.3))(jiti@2.6.1)(typescript@5.9.3)(yaml@2.8.3)
 
   packages/core:
+    dependencies:
+      json-pointer:
+        specifier: 'catalog:'
+        version: 0.6.2
     devDependencies:
+      '@types/json-pointer':
+        specifier: 'catalog:'
+        version: 1.0.34
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.2
@@ -484,6 +497,9 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
+  '@types/json-pointer@1.0.34':
+    resolution: {integrity: sha512-JRnWcxzXSaLei98xgw1B7vAeBVOrkyw0+Rt9j1QoJrczE78OpHsyQC8GNbuhw+/2vxxDe58QvWnngS86CoIbRg==}
+
   '@types/node@25.5.2':
     resolution: {integrity: sha512-tO4ZIRKNC+MDWV4qKVZe3Ql/woTnmHDr5JD8UI5hn2pwBrHEwOEMZK7WlNb5RKB6EoJ02gwmQS9OrjuFnZYdpg==}
 
@@ -702,6 +718,9 @@ packages:
       picomatch:
         optional: true
 
+  foreach@2.0.6:
+    resolution: {integrity: sha512-k6GAGDyqLe9JaebCsFCoudPPWfihKu8pylYXRlqP1J7ms39iPoTtk2fviNglIeQEwdh0bQeKJ01ZPyuyQvKzwg==}
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -713,6 +732,9 @@ packages:
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
+
+  json-pointer@0.6.2:
+    resolution: {integrity: sha512-vLWcKbOaXlO+jvRy4qNd+TI1QUPZzfJj1tpJ3vAXDych5XJf93ftpUKe5pKCrzyIIwgBJcOcCVRUfqQP25afBw==}
 
   jsonc-parser@3.3.1:
     resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
@@ -1224,6 +1246,8 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
+  '@types/json-pointer@1.0.34': {}
+
   '@types/node@25.5.2':
     dependencies:
       undici-types: 7.18.2
@@ -1421,12 +1445,18 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
+  foreach@2.0.6: {}
+
   fsevents@2.3.3:
     optional: true
 
   isexe@2.0.0: {}
 
   jiti@2.6.1: {}
+
+  json-pointer@0.6.2:
+    dependencies:
+      foreach: 2.0.6
 
   jsonc-parser@3.3.1: {}
 
