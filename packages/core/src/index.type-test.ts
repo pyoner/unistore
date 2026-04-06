@@ -37,6 +37,8 @@ export type _PointerValueFromTokens = Assert<
   Equal<PointerValue<State, readonly ["todos", `${number}`, "title"]>, string>
 >;
 
+declare function expectType<T>(value: T): void;
+
 const store = createStore<State>();
 
 const userName = store.get("/user/name");
@@ -47,29 +49,20 @@ store.set(["user", "profile", "age"] as const, 36);
 store.set(["todos", "0", "done"] as const, true);
 
 store.subscribe("/user/name", (key, value) => {
-  const typedKey: "/user/name" = key;
-  const typedValue: string = value;
-
-  void typedKey;
-  void typedValue;
+  expectType<"/user/name">(key);
+  expectType<string>(value);
 });
 
 store.subscribe(["todos", "0", "title"] as const, (key, value) => {
-  const typedKey: readonly ["todos", "0", "title"] = key;
-  const typedValue: string = value;
-
-  void typedKey;
-  void typedValue;
+  expectType<readonly ["todos", "0", "title"]>(key);
+  expectType<string>(value);
 });
 
-const _userName: string = userName;
-const _todoTitle: string = todoTitle;
+expectType<string>(userName);
+expectType<string>(todoTitle);
 
 // @ts-expect-error invalid token path for State
 store.get(["/t"] as const);
 
 // @ts-expect-error invalid pointer string for State
 store.get("/missing");
-
-void _userName;
-void _todoTitle;
