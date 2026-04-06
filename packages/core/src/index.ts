@@ -38,7 +38,7 @@ type ParsePointer<Pointer extends string> = Pointer extends ""
   ? []
   : Pointer extends `/${infer Tail}`
     ? SplitPointer<Tail>
-    : [Pointer];
+    : never;
 
 type ChildTokens<T> = Exclude<PathTokens<T>, readonly []>;
 
@@ -91,8 +91,6 @@ type TypedListener<T, K extends PointerKey<T>> = (
 
 export type Listener<T = unknown> = (key: Key, value: unknown, state: T | undefined) => void;
 
-type AnyListener<T> = Listener<T>;
-
 export type Store<T = unknown> = {
   get<K extends PointerKey<T>>(key: K): PointerValue<T, K>;
   has<K extends PointerKey<T>>(key: K): boolean;
@@ -103,7 +101,7 @@ export type Store<T = unknown> = {
 
 type Subscription<T> = {
   key: Key;
-  listener: AnyListener<T>;
+  listener: Listener<T>;
 };
 
 function toPath(key: Key): string[] {
@@ -112,10 +110,6 @@ function toPath(key: Key): string[] {
 
 function toLibKey(key: Key): string | string[] {
   return Array.isArray(key) ? [...key] : (key as string);
-}
-
-function toPointer(path: readonly string[]): string {
-  return compile([...path]);
 }
 
 function getAncestorPaths(path: readonly string[]): readonly string[][] {
@@ -136,10 +130,10 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
   }
 
   function emit(path: readonly string[]): void {
-    const visited = new Set<AnyListener<T>>();
+    const visited = new Set<Listener<T>>();
 
     for (const currentPath of getAncestorPaths(path)) {
-      const subscriptions = listeners.get(toPointer(currentPath));
+      const subscriptions = listeners.get(compile([...currentPath]));
 
       if (!subscriptions) {
         continue;
@@ -181,9 +175,9 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
       emit(path);
     },
 
-    subscribe(key: Key, listener: AnyListener<T>) {
+    subscribe(key: Key, listener: Listener<T>) {
       const path = toPath(key);
-      const pointer = toPointer(path);
+      const pointer = compile([...path]);
       const subscriptions = listeners.get(pointer) ?? new Set<Subscription<T>>();
       const subscription: Subscription<T> = {
         key: Array.isArray(key) ? [...key] : key,
