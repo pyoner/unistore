@@ -1,8 +1,5 @@
+import { assertType, expectTypeOf } from "vite-plus/test";
 import { createStore, type PointerString, type PointerValue } from "./index.ts";
-
-type Assert<T extends true> = T;
-type Equal<A, B> =
-  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 type State = {
   user: {
@@ -17,27 +14,19 @@ type State = {
   }>;
 };
 
-export type _PointerStrings = Assert<
-  Equal<Extract<PointerString<State>, "/user/name">, "/user/name">
->;
+expectTypeOf<Extract<PointerString<State>, "/user/name">>().toEqualTypeOf<"/user/name">();
 
-export type _ArrayPointerStrings = Assert<
-  Equal<Extract<PointerString<State>, `/todos/${number}/title`>, `/todos/${number}/title`>
->;
+expectTypeOf<
+  Extract<PointerString<State>, `/todos/${number}/title`>
+>().toEqualTypeOf<`/todos/${number}/title`>();
 
-export type _PointerValueFromString = Assert<
-  Equal<PointerValue<State, "/user/profile/age">, number>
->;
+expectTypeOf<PointerValue<State, "/user/profile/age">>().toEqualTypeOf<number>();
 
-export type _ArrayPointerValueFromString = Assert<
-  Equal<PointerValue<State, `/todos/${number}/title`>, string>
->;
+expectTypeOf<PointerValue<State, `/todos/${number}/title`>>().toEqualTypeOf<string>();
 
-export type _PointerValueFromTokens = Assert<
-  Equal<PointerValue<State, readonly ["todos", `${number}`, "title"]>, string>
->;
-
-declare function expectType<T>(value: T): void;
+expectTypeOf<
+  PointerValue<State, readonly ["todos", `${number}`, "title"]>
+>().toEqualTypeOf<string>();
 
 const store = createStore<State>();
 
@@ -49,17 +38,17 @@ store.set(["user", "profile", "age"] as const, 36);
 store.set(["todos", "0", "done"] as const, true);
 
 store.subscribe("/user/name", (key, value) => {
-  expectType<"/user/name">(key);
-  expectType<string>(value);
+  assertType<"/user/name">(key);
+  assertType<string>(value);
 });
 
 store.subscribe(["todos", "0", "title"] as const, (key, value) => {
-  expectType<readonly ["todos", "0", "title"]>(key);
-  expectType<string>(value);
+  assertType<readonly ["todos", "0", "title"]>(key);
+  assertType<string>(value);
 });
 
-expectType<string>(userName);
-expectType<string>(todoTitle);
+assertType<string>(userName);
+assertType<string>(todoTitle);
 
 // @ts-expect-error invalid token path for State
 store.get(["/t"] as const);
