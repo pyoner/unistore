@@ -6,7 +6,6 @@ export type Unsubscribe = () => void;
 
 type Primitive = bigint | boolean | null | number | string | symbol | undefined;
 type Builtin = Date | Function | Primitive | RegExp;
-type PrevDepth = [never, 0, 1, 2, 3, 4, 5, 6];
 type ArrayIndexToken = `${number}`;
 
 type StringKeyOf<T> = Extract<keyof T, string>;
@@ -41,29 +40,22 @@ type ParsePointer<Pointer extends string> = Pointer extends ""
     ? SplitPointer<Tail>
     : [Pointer];
 
-type ChildTokens<T, Depth extends number> = Exclude<PathTokens<T, Depth>, readonly []>;
+type ChildTokens<T> = Exclude<PathTokens<T>, readonly []>;
 
-export type PathTokens<T, Depth extends number = 5> = Depth extends 0
+export type PathTokens<T> = T extends Builtin
   ? readonly []
-  : T extends Builtin
-    ? readonly []
-    : T extends readonly (infer Item)[]
+  : T extends readonly (infer Item)[]
+    ? readonly [] | readonly [ArrayIndexToken] | readonly [ArrayIndexToken, ...ChildTokens<Item>]
+    : T extends object
       ?
           | readonly []
-          | readonly [ArrayIndexToken]
-          | readonly [ArrayIndexToken, ...ChildTokens<Item, PrevDepth[Depth]>]
-      : T extends object
-        ?
-            | readonly []
-            | {
-                [K in StringKeyOf<T>]:
-                  | readonly [K]
-                  | readonly [K, ...ChildTokens<T[K], PrevDepth[Depth]>];
-              }[StringKeyOf<T>]
-        : readonly [];
+          | {
+              [K in StringKeyOf<T>]: readonly [K] | readonly [K, ...ChildTokens<T[K]>];
+            }[StringKeyOf<T>]
+      : readonly [];
 
-export type PointerString<T, Depth extends number = 5> =
-  PathTokens<T, Depth> extends infer Tokens
+export type PointerString<T> =
+  PathTokens<T> extends infer Tokens
     ? Tokens extends readonly string[]
       ? Tokens extends readonly []
         ? ""
@@ -83,9 +75,7 @@ type ValueAtPathTokens<T, Tokens extends readonly string[]> = Tokens extends rea
         : never
     : never;
 
-export type PointerKey<T, Depth extends number = 5> =
-  | PathTokens<T, Depth>
-  | PointerString<T, Depth>;
+export type PointerKey<T> = PathTokens<T> | PointerString<T>;
 
 export type PointerValue<T, K> = K extends string
   ? ValueAtPathTokens<T, ParsePointer<K>>
@@ -93,20 +83,22 @@ export type PointerValue<T, K> = K extends string
     ? ValueAtPathTokens<T, K>
     : never;
 
-export type Listener<T = unknown, K extends Key = Key> = (
+type TypedListener<T, K extends PointerKey<T>> = (
   key: K,
   value: PointerValue<T, K>,
   state: T | undefined,
 ) => void;
 
-type AnyListener<T> = (key: Key, value: unknown, state: T | undefined) => void;
+export type Listener<T = unknown> = (key: Key, value: unknown, state: T | undefined) => void;
+
+type AnyListener<T> = Listener<T>;
 
 export type Store<T = unknown> = {
   get<K extends PointerKey<T>>(key: K): PointerValue<T, K>;
   has<K extends PointerKey<T>>(key: K): boolean;
   set<K extends PointerKey<T>>(key: K, value: PointerValue<T, K>): void;
   remove<K extends PointerKey<T>>(key: K): void;
-  subscribe<K extends PointerKey<T>>(key: K, listener: Listener<T, K>): Unsubscribe;
+  subscribe<K extends PointerKey<T>>(key: K, listener: TypedListener<T, K>): Unsubscribe;
 };
 
 type Subscription<T> = {
@@ -166,57 +158,50 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
     }
   }
 
-  const getValue = (<K extends PointerKey<T>>(key: K): PointerValue<T, K> => {
-    return get(state as object, toLibKey(key)) as PointerValue<T, K>;
-  }) as Store<T>["get"];
+  const runtimeStore = {
+    get(key: Key) {
+      return get(state as object, toLibKey(key));
+    },
 
-  const hasValue = (<K extends PointerKey<T>>(key: K): boolean => {
-    return has(state as object, toLibKey(key));
-  }) as Store<T>["has"];
+    has(key: Key) {
+      return has(state as object, toLibKey(key));
+    },
 
-  const setValue = (<K extends PointerKey<T>>(key: K, value: PointerValue<T, K>): void => {
-    const path = toPath(key);
+    set(key: Key, value: unknown) {
+      const path = toPath(key);
 
-    set(state as object, toLibKey(key), value);
-    emit(path);
-  }) as Store<T>["set"];
+      set(state as object, toLibKey(key), value);
+      emit(path);
+    },
 
-  const removeValue = (<K extends PointerKey<T>>(key: K): void => {
-    const path = toPath(key);
+    remove(key: Key) {
+      const path = toPath(key);
 
-    remove(state as object, toLibKey(key));
-    emit(path);
-  }) as Store<T>["remove"];
+      remove(state as object, toLibKey(key));
+      emit(path);
+    },
 
-  const subscribeValue = (<K extends PointerKey<T>>(
-    key: K,
-    listener: Listener<T, K>,
-  ): Unsubscribe => {
-    const path = toPath(key);
-    const pointer = toPointer(path);
-    const subscriptions = listeners.get(pointer) ?? new Set<Subscription<T>>();
-    const subscription = {
-      key: Array.isArray(key) ? [...key] : key,
-      listener: listener as AnyListener<T>,
-    };
+    subscribe(key: Key, listener: AnyListener<T>) {
+      const path = toPath(key);
+      const pointer = toPointer(path);
+      const subscriptions = listeners.get(pointer) ?? new Set<Subscription<T>>();
+      const subscription: Subscription<T> = {
+        key: Array.isArray(key) ? [...key] : key,
+        listener,
+      };
 
-    subscriptions.add(subscription);
-    listeners.set(pointer, subscriptions);
+      subscriptions.add(subscription);
+      listeners.set(pointer, subscriptions);
 
-    return () => {
-      subscriptions.delete(subscription);
+      return () => {
+        subscriptions.delete(subscription);
 
-      if (subscriptions.size === 0) {
-        listeners.delete(pointer);
-      }
-    };
-  }) as Store<T>["subscribe"];
-
-  return {
-    get: getValue,
-    has: hasValue,
-    set: setValue,
-    remove: removeValue,
-    subscribe: subscribeValue,
+        if (subscriptions.size === 0) {
+          listeners.delete(pointer);
+        }
+      };
+    },
   };
+
+  return runtimeStore as unknown as Store<T>;
 }
