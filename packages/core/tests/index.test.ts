@@ -125,17 +125,15 @@ test("stops notifying after unsubscribe", () => {
 test("throws library errors for invalid pointer strings", () => {
   const store = createStore({ user: { name: "Ada" } }) as Store<any>;
 
-  expect(() => store.get("user" as any)).toThrowError("Invalid JSON pointer: user");
-  expect(() => store.set("user" as any, "Grace")).toThrowError("Invalid JSON pointer: user");
+  expect(() => store.get("user" as any)).toThrow("Invalid JSON pointer: user");
+  expect(() => store.set("user" as any, "Grace")).toThrow("Invalid JSON pointer: user");
 });
 
 test("matches library root-operation errors", () => {
   const store = createStore({ user: { name: "Ada" } });
 
-  expect(() => store.set("", { user: { name: "Grace" } })).toThrowError(
-    "Can not set the root object",
-  );
-  expect(() => store.remove("")).toThrowError('Invalid JSON pointer for remove: ""');
+  expect(() => store.set("", { user: { name: "Grace" } })).toThrow("Can not set the root object");
+  expect(() => store.remove("")).toThrow('Invalid JSON pointer for remove: ""');
 });
 
 test("does not create a missing root container", () => {
