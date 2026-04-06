@@ -21,12 +21,20 @@ export type _PointerStrings = Assert<
   Equal<Extract<PointerString<State>, "/user/name">, "/user/name">
 >;
 
+export type _ArrayPointerStrings = Assert<
+  Equal<Extract<PointerString<State>, `/todos/${number}/title`>, `/todos/${number}/title`>
+>;
+
 export type _PointerValueFromString = Assert<
   Equal<PointerValue<State, "/user/profile/age">, number>
 >;
 
+export type _ArrayPointerValueFromString = Assert<
+  Equal<PointerValue<State, `/todos/${number}/title`>, string>
+>;
+
 export type _PointerValueFromTokens = Assert<
-  Equal<PointerValue<State, readonly ["todos", "0", "title"]>, string>
+  Equal<PointerValue<State, readonly ["todos", `${number}`, "title"]>, string>
 >;
 
 const store = createStore<State>();
@@ -56,6 +64,12 @@ store.subscribe(["todos", "0", "title"] as const, (key, value) => {
 
 const _userName: string = userName;
 const _todoTitle: string = todoTitle;
+
+// @ts-expect-error invalid token path for State
+store.get(["/t"] as const);
+
+// @ts-expect-error invalid pointer string for State
+store.get("/missing");
 
 void _userName;
 void _todoTitle;

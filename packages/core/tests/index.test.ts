@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vite-plus/test";
-import { createStore } from "../src/index.ts";
+import { createStore, type Store } from "../src/index.ts";
 
 test("reads nested values using RFC pointer strings", () => {
   const store = createStore({
@@ -123,10 +123,10 @@ test("stops notifying after unsubscribe", () => {
 });
 
 test("throws library errors for invalid pointer strings", () => {
-  const store = createStore({ user: { name: "Ada" } });
+  const store = createStore({ user: { name: "Ada" } }) as Store<any>;
 
-  expect(() => store.get("user")).toThrowError("Invalid JSON pointer: user");
-  expect(() => store.set("user", "Grace")).toThrowError("Invalid JSON pointer: user");
+  expect(() => store.get("user" as any)).toThrowError("Invalid JSON pointer: user");
+  expect(() => store.set("user" as any, "Grace")).toThrowError("Invalid JSON pointer: user");
 });
 
 test("matches library root-operation errors", () => {
@@ -139,7 +139,7 @@ test("matches library root-operation errors", () => {
 });
 
 test("does not create a missing root container", () => {
-  const store = createStore();
+  const store = createStore<any>();
 
   expect(() => store.set("/user/name", "Ada")).toThrow();
 });

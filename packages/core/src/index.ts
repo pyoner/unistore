@@ -103,15 +103,10 @@ type AnyListener<T> = (key: Key, value: unknown, state: T | undefined) => void;
 
 export type Store<T = unknown> = {
   get<K extends PointerKey<T>>(key: K): PointerValue<T, K>;
-  get(key: Key): unknown;
   has<K extends PointerKey<T>>(key: K): boolean;
-  has(key: Key): boolean;
   set<K extends PointerKey<T>>(key: K, value: PointerValue<T, K>): void;
-  set(key: Key, value: unknown): void;
   remove<K extends PointerKey<T>>(key: K): void;
-  remove(key: Key): void;
   subscribe<K extends PointerKey<T>>(key: K, listener: Listener<T, K>): Unsubscribe;
-  subscribe(key: Key, listener: AnyListener<T>): Unsubscribe;
 };
 
 type Subscription<T> = {
@@ -171,13 +166,38 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
     }
   }
 
-  function subscribe(key: Key, listener: AnyListener<T>): Unsubscribe {
+  const getValue = (<K extends PointerKey<T>>(key: K): PointerValue<T, K> => {
+    return get(state as object, toLibKey(key)) as PointerValue<T, K>;
+  }) as Store<T>["get"];
+
+  const hasValue = (<K extends PointerKey<T>>(key: K): boolean => {
+    return has(state as object, toLibKey(key));
+  }) as Store<T>["has"];
+
+  const setValue = (<K extends PointerKey<T>>(key: K, value: PointerValue<T, K>): void => {
+    const path = toPath(key);
+
+    set(state as object, toLibKey(key), value);
+    emit(path);
+  }) as Store<T>["set"];
+
+  const removeValue = (<K extends PointerKey<T>>(key: K): void => {
+    const path = toPath(key);
+
+    remove(state as object, toLibKey(key));
+    emit(path);
+  }) as Store<T>["remove"];
+
+  const subscribeValue = (<K extends PointerKey<T>>(
+    key: K,
+    listener: Listener<T, K>,
+  ): Unsubscribe => {
     const path = toPath(key);
     const pointer = toPointer(path);
     const subscriptions = listeners.get(pointer) ?? new Set<Subscription<T>>();
     const subscription = {
       key: Array.isArray(key) ? [...key] : key,
-      listener,
+      listener: listener as AnyListener<T>,
     };
 
     subscriptions.add(subscription);
@@ -190,31 +210,13 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
         listeners.delete(pointer);
       }
     };
-  }
+  }) as Store<T>["subscribe"];
 
   return {
-    get(key: Key) {
-      return get(state as object, toLibKey(key));
-    },
-
-    has(key: Key) {
-      return has(state as object, toLibKey(key));
-    },
-
-    set(key: Key, value: unknown) {
-      const path = toPath(key);
-
-      set(state as object, toLibKey(key), value);
-      emit(path);
-    },
-
-    remove(key: Key) {
-      const path = toPath(key);
-
-      remove(state as object, toLibKey(key));
-      emit(path);
-    },
-
-    subscribe: subscribe as Store<T>["subscribe"],
+    get: getValue,
+    has: hasValue,
+    set: setValue,
+    remove: removeValue,
+    subscribe: subscribeValue,
   };
 }
