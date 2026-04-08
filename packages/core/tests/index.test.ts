@@ -61,6 +61,16 @@ test("updates nested array values by raw path segments", () => {
   ]);
 });
 
+test("updates values with updater callbacks", () => {
+  const store = createStore(createInitialState());
+
+  store.update("/user/name", (name) => `${name} Lovelace`);
+  store.update(["todos", "0", "done"], (done) => !done);
+
+  expect(store.get("/user/name")).toBe("Ada Lovelace");
+  expect(store.get(["todos", "0", "done"])).toBe(true);
+});
+
 test("removes nested object values by RFC pointer string", () => {
   const initial = createInitialState();
   const store = createStore(initial);

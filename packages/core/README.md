@@ -17,6 +17,10 @@ type Store<T> = {
   get<K extends PointerKey<T>>(key: K): PointerValue<T, K>;
   has<K extends PointerKey<T>>(key: K): boolean;
   set<K extends PointerKey<T>>(key: K, value: PointerValue<T, K>): void;
+  update<K extends PointerKey<T>>(
+    key: K,
+    updater: (current: PointerValue<T, K>) => PointerValue<T, K>,
+  ): void;
   remove<K extends PointerKey<T>>(key: K): void;
   subscribe<K extends PointerKey<T>>(
     key: K,
@@ -40,6 +44,7 @@ declare function createStore<T>(initialState?: T): Store<T>;
 ## Behavior
 
 - **Mutable updates**: `set` and `remove` mutate the internal state in place through `json-pointer`.
+- **Updater support**: `update(key, updater)` reads the current value at `key` and writes back the updater result.
 - **Pointer semantics**: invalid pointers throw the underlying `json-pointer` errors.
 - **Root operations**: behavior matches `json-pointer` (for example `set("")` and `remove("")` throw).
 - **Subscription model**: subscribing to a key listens to that key path; updates emit to exact and ancestor path subscribers.
@@ -63,6 +68,7 @@ const store = createStore<State>({
 
 store.set("/user/name", "Grace");
 store.set(["todos", "0", "done"], true);
+store.update("/user/name", (name) => name.toUpperCase());
 
 const userName = store.get("/user/name");
 const firstDone = store.get(["todos", "0", "done"]);

@@ -100,6 +100,10 @@ export type Store<T = unknown> = {
   get<K extends PointerKey<T>>(key: K): PointerValue<T, K>;
   has<K extends PointerKey<T>>(key: K): boolean;
   set<K extends PointerKey<T>>(key: K, value: PointerValue<T, K>): void;
+  update<K extends PointerKey<T>>(
+    key: K,
+    updater: (current: PointerValue<T, K>) => PointerValue<T, K>,
+  ): void;
   remove<K extends PointerKey<T>>(key: K): void;
   subscribe<K extends PointerKey<T>>(key: K, listener: TypedListener<T, K>): Unsubscribe;
   select<K extends PointerKey<T>>(key: K): Readable<PointerValue<T, K>>;
@@ -171,6 +175,15 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
       const path = toPath(key);
 
       jsonPointer.set(state as object, toLibKey(key), value);
+      emit(path);
+    },
+
+    update(key: Key, updater: (current: unknown) => unknown) {
+      const currentValue = jsonPointer.get(state as object, toLibKey(key));
+      const nextValue = updater(currentValue);
+      const path = toPath(key);
+
+      jsonPointer.set(state as object, toLibKey(key), nextValue);
       emit(path);
     },
 

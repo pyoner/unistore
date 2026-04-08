@@ -37,6 +37,8 @@ const selectedName = store.select("/user/name");
 store.set("/user/name", "Ada");
 store.set(["user", "profile", "age"] as const, 36);
 store.set(["todos", "0", "done"] as const, true);
+store.update("/user/name", (name) => name.toUpperCase());
+store.update(["todos", "0", "done"] as const, (done) => !done);
 
 store.subscribe("/user/name", (key, value) => {
   assertType<"/user/name">(key);
@@ -59,3 +61,6 @@ store.get(["/t"] as const);
 
 // @ts-expect-error invalid pointer string for State
 store.get("/missing");
+
+// @ts-expect-error updater must return matching path value type
+store.update("/user/name", () => 42);
