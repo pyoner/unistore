@@ -38,49 +38,51 @@
 
 	const remaining = $derived(state.todos.filter((todo) => !todo.done).length);
 	const visibleTodos = $derived.by(() => {
+		const todosWithIndex = state.todos.map((todo, index) => ({ todo, index }));
+
 		if (state.filter === 'active') {
-			return state.todos.filter((todo) => !todo.done);
+			return todosWithIndex.filter((item) => !item.todo.done);
 		}
 
 		if (state.filter === 'done') {
-			return state.todos.filter((todo) => todo.done);
+			return todosWithIndex.filter((item) => item.todo.done);
 		}
 
-		return state.todos;
+		return todosWithIndex;
 	});
 
 	function addTodo() {
-		const title = state.draft.trim();
+		const title = store.get('/draft').trim();
+		const todos = store.get('/todos');
 
 		if (!title) {
 			return;
 		}
 
-		store.set('/todos', [{ id: seq, title, done: false }, ...state.todos]);
+		store.set('/todos', [{ id: seq, title, done: false }, ...todos]);
 		seq += 1;
 		store.set('/draft', '');
 	}
 
-	function toggleTodo(id: number) {
-		const index = state.todos.findIndex((item) => item.id === id);
+	function toggleTodo(index: number) {
+		const path = ['todos', `${index}`, 'done'] as const;
 
-		if (index !== -1) {
-			const path = ['todos', `${index}` as `${number}`, 'done'] as const;
-			store.set(path, !state.todos[index].done);
+		if (store.has(path)) {
+			store.set(path, !store.get(path));
 		}
 	}
 
-	function removeTodo(id: number) {
-		const index = state.todos.findIndex((todo) => todo.id === id);
+	function removeTodo(index: number) {
+		const path = ['todos', `${index}`] as const;
 
-		if (index !== -1) {
-			const path = ['todos', `${index}` as `${number}`] as const;
+		if (store.has(path)) {
 			store.remove(path);
 		}
 	}
 
 	function clearDone() {
-		store.set('/todos', state.todos.filter((todo) => !todo.done));
+		const todos = store.get('/todos');
+		store.set('/todos', todos.filter((todo) => !todo.done));
 	}
 </script>
 
@@ -134,17 +136,17 @@
 			<p class="empty">No tasks in this filter.</p>
 		{:else}
 			<ul class="list">
-				{#each visibleTodos as todo (todo.id)}
+				{#each visibleTodos as item (item.todo.id)}
 					<li>
 						<label>
 							<input
 								type="checkbox"
-								checked={todo.done}
-								onchange={() => toggleTodo(todo.id)}
+								checked={item.todo.done}
+								onchange={() => toggleTodo(item.index)}
 							/>
-							<span class:done={todo.done}>{todo.title}</span>
+							<span class:done={item.todo.done}>{item.todo.title}</span>
 						</label>
-						<button type="button" class="delete" onclick={() => removeTodo(todo.id)}>
+						<button type="button" class="delete" onclick={() => removeTodo(item.index)}>
 							Delete
 						</button>
 					</li>
