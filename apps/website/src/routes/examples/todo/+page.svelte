@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { derived, readable } from 'svelte/store';
 	import { createStore } from 'core';
 
 	type Filter = 'all' | 'active' | 'done';
@@ -26,25 +26,24 @@
 			{ id: 3, title: 'Ship demo page', done: false }
 		]
 	});
-	let state = $state(store.get(''));
 
-	const unsubscribe = store.subscribe('', (_key, _value, nextState) => {
-		if (nextState) {
-			state = nextState;
-		}
+	const root = readable(store.get(''), (set) => {
+		return store.subscribe('', (_key, _value, nextState) => {
+			if (nextState) {
+				set(nextState);
+			}
+		});
 	});
 
-	onDestroy(unsubscribe);
+	const remaining = derived(root, ($root) => $root.todos.filter((todo) => !todo.done).length);
+	const visibleTodos = derived(root, ($root) => {
+		const todosWithIndex = $root.todos.map((todo, index) => ({ todo, index }));
 
-	const remaining = $derived(state.todos.filter((todo) => !todo.done).length);
-	const visibleTodos = $derived.by(() => {
-		const todosWithIndex = state.todos.map((todo, index) => ({ todo, index }));
-
-		if (state.filter === 'active') {
+		if ($root.filter === 'active') {
 			return todosWithIndex.filter((item) => !item.todo.done);
 		}
 
-		if (state.filter === 'done') {
+		if ($root.filter === 'done') {
 			return todosWithIndex.filter((item) => item.todo.done);
 		}
 
@@ -103,7 +102,7 @@
 		<div class="composer">
 			<input
 				type="text"
-				value={state.draft}
+				value={$root.draft}
 				oninput={(event) =>
 					store.set('/draft', (event.currentTarget as HTMLInputElement).value)}
 				placeholder="Add a task"
@@ -117,26 +116,26 @@
 		</div>
 
 		<div class="filters" role="group" aria-label="Filter todos">
-			<button class:active={state.filter === 'all'} type="button" onclick={() => store.set('/filter', 'all')}>
+			<button class:active={$root.filter === 'all'} type="button" onclick={() => store.set('/filter', 'all')}>
 				All
 			</button>
 			<button
-				class:active={state.filter === 'active'}
+				class:active={$root.filter === 'active'}
 				type="button"
 				onclick={() => store.set('/filter', 'active')}
 			>
 				Active
 			</button>
-			<button class:active={state.filter === 'done'} type="button" onclick={() => store.set('/filter', 'done')}>
+			<button class:active={$root.filter === 'done'} type="button" onclick={() => store.set('/filter', 'done')}>
 				Done
 			</button>
 		</div>
 
-		{#if visibleTodos.length === 0}
+		{#if $visibleTodos.length === 0}
 			<p class="empty">No tasks in this filter.</p>
 		{:else}
 			<ul class="list">
-				{#each visibleTodos as item (item.todo.id)}
+				{#each $visibleTodos as item (item.todo.id)}
 					<li>
 						<label>
 							<input
@@ -155,7 +154,7 @@
 		{/if}
 
 		<footer class="summary">
-			<p>{remaining} task{remaining === 1 ? '' : 's'} left</p>
+			<p>{$remaining} task{$remaining === 1 ? '' : 's'} left</p>
 			<button type="button" class="clear" onclick={clearDone}>Clear done</button>
 		</footer>
 	</section>
