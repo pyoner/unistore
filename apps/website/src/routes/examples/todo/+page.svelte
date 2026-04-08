@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { derived, readable } from 'svelte/store';
+	import { derived, get } from 'svelte/store';
 	import { createStore } from 'core';
 
 	type Filter = 'all' | 'active' | 'done';
@@ -27,23 +27,19 @@
 		]
 	});
 
-	const root = readable(store.get(''), (set) => {
-		return store.subscribe('', (_key, _value, nextState) => {
-			if (nextState) {
-				set(nextState);
-			}
-		});
-	});
+	const draft = store.select('/draft');
+	const filter = store.select('/filter');
+	const todos = store.select('/todos');
 
-	const remaining = derived(root, ($root) => $root.todos.filter((todo) => !todo.done).length);
-	const visibleTodos = derived(root, ($root) => {
-		const todosWithIndex = $root.todos.map((todo, index) => ({ todo, index }));
+	const remaining = derived(todos, ($todos) => $todos.filter((todo) => !todo.done).length);
+	const visibleTodos = derived([todos, filter], ([$todos, $filter]) => {
+		const todosWithIndex = $todos.map((todo, index) => ({ todo, index }));
 
-		if ($root.filter === 'active') {
+		if ($filter === 'active') {
 			return todosWithIndex.filter((item) => !item.todo.done);
 		}
 
-		if ($root.filter === 'done') {
+		if ($filter === 'done') {
 			return todosWithIndex.filter((item) => item.todo.done);
 		}
 
@@ -51,14 +47,14 @@
 	});
 
 	function addTodo() {
-		const title = store.get('/draft').trim();
-		const todos = store.get('/todos');
+		const title = get(draft).trim();
+		const currentTodos = get(todos);
 
 		if (!title) {
 			return;
 		}
 
-		store.set('/todos', [{ id: seq, title, done: false }, ...todos]);
+		store.set('/todos', [{ id: seq, title, done: false }, ...currentTodos]);
 		seq += 1;
 		store.set('/draft', '');
 	}
@@ -80,8 +76,7 @@
 	}
 
 	function clearDone() {
-		const todos = store.get('/todos');
-		store.set('/todos', todos.filter((todo) => !todo.done));
+		store.set('/todos', get(todos).filter((todo) => !todo.done));
 	}
 </script>
 
@@ -102,7 +97,7 @@
 		<div class="composer">
 			<input
 				type="text"
-				value={$root.draft}
+				value={$draft}
 				oninput={(event) =>
 					store.set('/draft', (event.currentTarget as HTMLInputElement).value)}
 				placeholder="Add a task"
@@ -116,17 +111,17 @@
 		</div>
 
 		<div class="filters" role="group" aria-label="Filter todos">
-			<button class:active={$root.filter === 'all'} type="button" onclick={() => store.set('/filter', 'all')}>
+			<button class:active={$filter === 'all'} type="button" onclick={() => store.set('/filter', 'all')}>
 				All
 			</button>
 			<button
-				class:active={$root.filter === 'active'}
+				class:active={$filter === 'active'}
 				type="button"
 				onclick={() => store.set('/filter', 'active')}
 			>
 				Active
 			</button>
-			<button class:active={$root.filter === 'done'} type="button" onclick={() => store.set('/filter', 'done')}>
+			<button class:active={$filter === 'done'} type="button" onclick={() => store.set('/filter', 'done')}>
 				Done
 			</button>
 		</div>
