@@ -96,50 +96,30 @@ test("removes array items by raw path segments", () => {
   expect(store.has("/todos/2")).toBe(false);
 });
 
-test("notifies exact, ancestor, and root subscribers with current values", () => {
+test("select notifies exact, ancestor, and root keyed values", () => {
   const store = createStore(createInitialState());
-  const rootListener = vi.fn();
-  const userListener = vi.fn();
-  const nameListener = vi.fn();
+  const rootRun = vi.fn();
+  const userRun = vi.fn();
+  const nameRun = vi.fn();
 
-  store.subscribe("", rootListener);
-  store.subscribe("/user", userListener);
-  store.subscribe(["user", "name"], nameListener);
+  store.select("").subscribe(rootRun);
+  store.select("/user").subscribe(userRun);
+  store.select(["user", "name"]).subscribe(nameRun);
+
+  expect(rootRun).toHaveBeenNthCalledWith(1, {
+    user: { name: "Ada", age: 36 },
+    todos: [
+      { title: "Draft", done: false },
+      { title: "Ship", done: false },
+      { title: "Celebrate", done: true },
+    ],
+  });
+  expect(userRun).toHaveBeenNthCalledWith(1, { name: "Ada", age: 36 });
+  expect(nameRun).toHaveBeenNthCalledWith(1, "Ada");
 
   store.set("/user/name", "Grace");
 
-  expect(rootListener).toHaveBeenCalledWith(
-    "",
-    {
-      user: { name: "Grace", age: 36 },
-      todos: [
-        { title: "Draft", done: false },
-        { title: "Ship", done: false },
-        { title: "Celebrate", done: true },
-      ],
-    },
-    {
-      user: { name: "Grace", age: 36 },
-      todos: [
-        { title: "Draft", done: false },
-        { title: "Ship", done: false },
-        { title: "Celebrate", done: true },
-      ],
-    },
-  );
-  expect(userListener).toHaveBeenCalledWith(
-    "/user",
-    { name: "Grace", age: 36 },
-    {
-      user: { name: "Grace", age: 36 },
-      todos: [
-        { title: "Draft", done: false },
-        { title: "Ship", done: false },
-        { title: "Celebrate", done: true },
-      ],
-    },
-  );
-  expect(nameListener).toHaveBeenCalledWith(["user", "name"], "Grace", {
+  expect(rootRun).toHaveBeenNthCalledWith(2, {
     user: { name: "Grace", age: 36 },
     todos: [
       { title: "Draft", done: false },
@@ -147,18 +127,22 @@ test("notifies exact, ancestor, and root subscribers with current values", () =>
       { title: "Celebrate", done: true },
     ],
   });
+  expect(userRun).toHaveBeenNthCalledWith(2, { name: "Grace", age: 36 });
+  expect(nameRun).toHaveBeenNthCalledWith(2, "Grace");
 });
 
-test("stops notifying after unsubscribe", () => {
+test("select stops notifying after unsubscribe", () => {
   const store = createStore(createInitialState());
-  const listener = vi.fn();
+  const run = vi.fn();
 
-  const unsubscribe = store.subscribe("/user/name", listener);
+  const unsubscribe = store.select("/user/name").subscribe(run);
+
+  run.mockClear();
 
   unsubscribe();
   store.set("/user/name", "Grace");
 
-  expect(listener).not.toHaveBeenCalled();
+  expect(run).not.toHaveBeenCalled();
 });
 
 test("select returns readable-compatible keyed subscription", () => {

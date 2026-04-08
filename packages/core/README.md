@@ -8,7 +8,7 @@ Core store library with JSON Pointer paths and typed key inference.
 
 - Keys support both JSON Pointer strings (for example `"/user/name"`) and token arrays (for example `["user", "name"]`).
 - The TypeScript API infers valid keys and value types from `T`.
-- Subscriptions are path-based and include ancestor notifications.
+- Path selections are reactive via `select(key)` and include ancestor-path notifications.
 
 ## API
 
@@ -22,10 +22,6 @@ type Store<T> = {
     updater: (current: PointerValue<T, K>) => PointerValue<T, K>,
   ): void;
   remove<K extends PointerKey<T>>(key: K): void;
-  subscribe<K extends PointerKey<T>>(
-    key: K,
-    listener: (key: K, value: PointerValue<T, K>, state: T | undefined) => void,
-  ): () => void;
   select<K extends PointerKey<T>>(
     key: K,
   ): {
@@ -43,13 +39,13 @@ declare function createStore<T>(initialState?: T): Store<T>;
 
 ## Behavior
 
-- **Mutable updates**: `set` and `remove` mutate the internal state in place through `json-pointer`.
+- **Mutable updates**: `set`, `update`, and `remove` mutate the internal state in place through `json-pointer`.
 - **Updater support**: `update(key, updater)` reads the current value at `key` and writes back the updater result.
 - **Pointer semantics**: invalid pointers throw the underlying `json-pointer` errors.
 - **Root operations**: behavior matches `json-pointer` (for example `set("")` and `remove("")` throw).
-- **Subscription model**: subscribing to a key listens to that key path; updates emit to exact and ancestor path subscribers.
 - **Svelte readable compatibility**: `select(key)` returns a readable-like object with `subscribe(run, invalidate?)`.
-- **Array index paths are positional**: subscribing to `"/todos/0"` watches index `0`, not a stable item identity.
+- **Immediate readable emission**: `select(key).subscribe(...)` emits the current value immediately, then future updates.
+- **Array index paths are positional**: selecting `"/todos/0"` watches index `0`, not a stable item identity.
 
 ## Example
 
@@ -78,19 +74,14 @@ const unsubscribeReadable = selectedName.subscribe((value) => {
   console.log("name", value);
 });
 
-const unsubscribe = store.subscribe("/user", (key, value, state) => {
-  console.log(key, value, state);
-});
-
 store.remove("/todos/0");
-unsubscribe();
 unsubscribeReadable();
 ```
 
 ## Gotchas
 
 - Use stable IDs for item identity (`todo.id`), not index paths, when lists can reorder.
-- Index subscriptions (`"/todos/0"`) follow the index after removals/reordering.
+- Index selections (`"/todos/0"`) follow the index after removals/reordering.
 
 ## Development
 

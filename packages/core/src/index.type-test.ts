@@ -40,16 +40,6 @@ store.set(["todos", "0", "done"] as const, true);
 store.update("/user/name", (name) => name.toUpperCase());
 store.update(["todos", "0", "done"] as const, (done) => !done);
 
-store.subscribe("/user/name", (key, value) => {
-  assertType<"/user/name">(key);
-  assertType<string>(value);
-});
-
-store.subscribe(["todos", "0", "title"] as const, (key, value) => {
-  assertType<readonly ["todos", "0", "title"]>(key);
-  assertType<string>(value);
-});
-
 assertType<string>(userName);
 assertType<string>(todoTitle);
 selectedName.subscribe((value) => {
@@ -64,3 +54,6 @@ store.get("/missing");
 
 // @ts-expect-error updater must return matching path value type
 store.update("/user/name", () => 42);
+
+// @ts-expect-error subscribe is internal-only
+store.subscribe("/user/name", () => {});

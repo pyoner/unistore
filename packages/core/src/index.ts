@@ -88,12 +88,6 @@ export type PointerValue<T, K> = K extends string
     ? ValueAtPathTokens<T, K>
     : never;
 
-type TypedListener<T, K extends PointerKey<T>> = (
-  key: K,
-  value: PointerValue<T, K>,
-  state: T | undefined,
-) => void;
-
 export type Listener<T = unknown> = (key: Key, value: unknown, state: T | undefined) => void;
 
 export type Store<T = unknown> = {
@@ -105,7 +99,6 @@ export type Store<T = unknown> = {
     updater: (current: PointerValue<T, K>) => PointerValue<T, K>,
   ): void;
   remove<K extends PointerKey<T>>(key: K): void;
-  subscribe<K extends PointerKey<T>>(key: K, listener: TypedListener<T, K>): Unsubscribe;
   select<K extends PointerKey<T>>(key: K): Readable<PointerValue<T, K>>;
 };
 
@@ -162,6 +155,27 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
     }
   }
 
+  function subscribe(key: Key, listener: Listener<T>) {
+    const path = toPath(key);
+    const pointer = jsonPointer.compile([...path]);
+    const subscriptions = listeners.get(pointer) ?? new Set<Subscription<T>>();
+    const subscription: Subscription<T> = {
+      key: Array.isArray(key) ? [...key] : key,
+      listener,
+    };
+
+    subscriptions.add(subscription);
+    listeners.set(pointer, subscriptions);
+
+    return () => {
+      subscriptions.delete(subscription);
+
+      if (subscriptions.size === 0) {
+        listeners.delete(pointer);
+      }
+    };
+  }
+
   const runtimeStore = {
     get(key: Key) {
       return jsonPointer.get(state as object, toLibKey(key));
@@ -194,33 +208,12 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
       emit(path);
     },
 
-    subscribe(key: Key, listener: Listener<T>) {
-      const path = toPath(key);
-      const pointer = jsonPointer.compile([...path]);
-      const subscriptions = listeners.get(pointer) ?? new Set<Subscription<T>>();
-      const subscription: Subscription<T> = {
-        key: Array.isArray(key) ? [...key] : key,
-        listener,
-      };
-
-      subscriptions.add(subscription);
-      listeners.set(pointer, subscriptions);
-
-      return () => {
-        subscriptions.delete(subscription);
-
-        if (subscriptions.size === 0) {
-          listeners.delete(pointer);
-        }
-      };
-    },
-
     select(key: Key) {
       return {
         subscribe(run: Subscriber<unknown>, invalidate?: Invalidate) {
           run(jsonPointer.get(state as object, toLibKey(key)));
 
-          return runtimeStore.subscribe(key, (_path, value) => {
+          return subscribe(key, (_path, value) => {
             invalidate?.();
             run(value);
           });
