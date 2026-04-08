@@ -1,4 +1,4 @@
-import { compile, get, has, parse, remove, set } from "json-pointer";
+import jsonPointer from "json-pointer";
 
 export type Key = string | readonly string[];
 export type Path = readonly string[];
@@ -105,7 +105,7 @@ type Subscription<T> = {
 };
 
 function toPath(key: Key): string[] {
-  return Array.isArray(key) ? [...key] : parse(key as string);
+  return Array.isArray(key) ? [...key] : jsonPointer.parse(key as string);
 }
 
 function toLibKey(key: Key): string | string[] {
@@ -124,8 +124,8 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
     return state !== undefined &&
       state !== null &&
       typeof state === "object" &&
-      has(state as object, [...path])
-      ? get(state as object, [...path])
+      jsonPointer.has(state as object, [...path])
+      ? jsonPointer.get(state as object, [...path])
       : undefined;
   }
 
@@ -133,7 +133,7 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
     const visited = new Set<Listener<T>>();
 
     for (const currentPath of getAncestorPaths(path)) {
-      const subscriptions = listeners.get(compile([...currentPath]));
+      const subscriptions = listeners.get(jsonPointer.compile([...currentPath]));
 
       if (!subscriptions) {
         continue;
@@ -154,30 +154,30 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
 
   const runtimeStore = {
     get(key: Key) {
-      return get(state as object, toLibKey(key));
+      return jsonPointer.get(state as object, toLibKey(key));
     },
 
     has(key: Key) {
-      return has(state as object, toLibKey(key));
+      return jsonPointer.has(state as object, toLibKey(key));
     },
 
     set(key: Key, value: unknown) {
       const path = toPath(key);
 
-      set(state as object, toLibKey(key), value);
+      jsonPointer.set(state as object, toLibKey(key), value);
       emit(path);
     },
 
     remove(key: Key) {
       const path = toPath(key);
 
-      remove(state as object, toLibKey(key));
+      jsonPointer.remove(state as object, toLibKey(key));
       emit(path);
     },
 
     subscribe(key: Key, listener: Listener<T>) {
       const path = toPath(key);
-      const pointer = compile([...path]);
+      const pointer = jsonPointer.compile([...path]);
       const subscriptions = listeners.get(pointer) ?? new Set<Subscription<T>>();
       const subscription: Subscription<T> = {
         key: Array.isArray(key) ? [...key] : key,
