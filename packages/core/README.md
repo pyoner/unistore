@@ -22,6 +22,11 @@ type Store<T> = {
     key: K,
     listener: (key: K, value: PointerValue<T, K>, state: T | undefined) => void,
   ): () => void;
+  select<K extends PointerKey<T>>(
+    key: K,
+  ): {
+    subscribe(run: (value: PointerValue<T, K>) => void, invalidate?: () => void): () => void;
+  };
 };
 
 declare function createStore<T>(initialState?: T): Store<T>;
@@ -38,6 +43,7 @@ declare function createStore<T>(initialState?: T): Store<T>;
 - **Pointer semantics**: invalid pointers throw the underlying `json-pointer` errors.
 - **Root operations**: behavior matches `json-pointer` (for example `set("")` and `remove("")` throw).
 - **Subscription model**: subscribing to a key listens to that key path; updates emit to exact and ancestor path subscribers.
+- **Svelte readable compatibility**: `select(key)` returns a readable-like object with `subscribe(run, invalidate?)`.
 - **Array index paths are positional**: subscribing to `"/todos/0"` watches index `0`, not a stable item identity.
 
 ## Example
@@ -61,12 +67,18 @@ store.set(["todos", "0", "done"], true);
 const userName = store.get("/user/name");
 const firstDone = store.get(["todos", "0", "done"]);
 
+const selectedName = store.select("/user/name");
+const unsubscribeReadable = selectedName.subscribe((value) => {
+  console.log("name", value);
+});
+
 const unsubscribe = store.subscribe("/user", (key, value, state) => {
   console.log(key, value, state);
 });
 
 store.remove("/todos/0");
 unsubscribe();
+unsubscribeReadable();
 ```
 
 ## Gotchas

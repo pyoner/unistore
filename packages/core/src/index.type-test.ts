@@ -32,6 +32,7 @@ const store = createStore<State>();
 
 const userName = store.get("/user/name");
 const todoTitle = store.get(["todos", "0", "title"] as const);
+const selectedName = store.select("/user/name");
 
 store.set("/user/name", "Ada");
 store.set(["user", "profile", "age"] as const, 36);
@@ -49,6 +50,9 @@ store.subscribe(["todos", "0", "title"] as const, (key, value) => {
 
 assertType<string>(userName);
 assertType<string>(todoTitle);
+selectedName.subscribe((value) => {
+  assertType<string>(value);
+});
 
 // @ts-expect-error invalid token path for State
 store.get(["/t"] as const);

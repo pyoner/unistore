@@ -3,6 +3,11 @@ import jsonPointer from "json-pointer";
 export type Key = string | readonly string[];
 export type Path = readonly string[];
 export type Unsubscribe = () => void;
+export type Invalidate = () => void;
+export type Subscriber<T> = (value: T) => void;
+export type Readable<T> = {
+  subscribe(run: Subscriber<T>, invalidate?: Invalidate): Unsubscribe;
+};
 
 type Primitive = bigint | boolean | null | number | string | symbol | undefined;
 type Builtin = Date | Function | Primitive | RegExp;
@@ -97,6 +102,7 @@ export type Store<T = unknown> = {
   set<K extends PointerKey<T>>(key: K, value: PointerValue<T, K>): void;
   remove<K extends PointerKey<T>>(key: K): void;
   subscribe<K extends PointerKey<T>>(key: K, listener: TypedListener<T, K>): Unsubscribe;
+  select<K extends PointerKey<T>>(key: K): Readable<PointerValue<T, K>>;
 };
 
 type Subscription<T> = {
@@ -193,6 +199,19 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
         if (subscriptions.size === 0) {
           listeners.delete(pointer);
         }
+      };
+    },
+
+    select(key: Key) {
+      return {
+        subscribe(run: Subscriber<unknown>, invalidate?: Invalidate) {
+          run(jsonPointer.get(state as object, toLibKey(key)));
+
+          return runtimeStore.subscribe(key, (_path, value) => {
+            invalidate?.();
+            run(value);
+          });
+        },
       };
     },
   };

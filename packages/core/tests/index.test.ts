@@ -151,6 +151,26 @@ test("stops notifying after unsubscribe", () => {
   expect(listener).not.toHaveBeenCalled();
 });
 
+test("select returns readable-compatible keyed subscription", () => {
+  const store = createStore(createInitialState());
+  const run = vi.fn();
+  const invalidate = vi.fn();
+
+  const unsubscribe = store.select("/user/name").subscribe(run, invalidate);
+
+  expect(run).toHaveBeenNthCalledWith(1, "Ada");
+
+  store.set("/user/name", "Grace");
+
+  expect(invalidate).toHaveBeenCalledTimes(1);
+  expect(run).toHaveBeenNthCalledWith(2, "Grace");
+
+  unsubscribe();
+  store.set("/user/name", "Lin");
+
+  expect(run).toHaveBeenCalledTimes(2);
+});
+
 test("throws library errors for invalid pointer strings", () => {
   const store = createStore(createInitialState()) as any;
 
