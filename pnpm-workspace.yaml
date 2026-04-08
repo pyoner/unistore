@@ -6,7 +6,7 @@ packages:
 
 catalog:
   "@types/json-pointer": ^1.0.34
-  "@types/node": ^24
+  "@types/node": ^24.12.2
   json-pointer: ^0.6.2
   typescript: ^5
   vite: npm:@voidzero-dev/vite-plus-core@latest
