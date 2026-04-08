@@ -105,7 +105,7 @@
 				type="text"
 				value={$draft}
 				oninput={(event) =>
-					store.update('/draft', () => (event.currentTarget as HTMLInputElement).value)}
+					store.set('/draft', (event.currentTarget as HTMLInputElement).value)}
 				placeholder="Add a task"
 				onkeydown={(event) => {
 					if (event.key === 'Enter') {
@@ -120,21 +120,21 @@
 			<button
 				class:active={$filter === 'all'}
 				type="button"
-				onclick={() => store.update('/filter', () => 'all')}
+				onclick={() => store.set('/filter', 'all')}
 			>
 				All
 			</button>
 			<button
 				class:active={$filter === 'active'}
 				type="button"
-				onclick={() => store.update('/filter', () => 'active')}
+				onclick={() => store.set('/filter', 'active')}
 			>
 				Active
 			</button>
 			<button
 				class:active={$filter === 'done'}
 				type="button"
-				onclick={() => store.update('/filter', () => 'done')}
+				onclick={() => store.set('/filter', 'done')}
 			>
 				Done
 			</button>
