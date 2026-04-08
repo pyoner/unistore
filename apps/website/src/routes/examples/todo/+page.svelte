@@ -16,14 +16,18 @@
 		todos: Todo[];
 	};
 
-	let seq = 4;
+	let _seq = 0;
+
+	function seq() {
+		return _seq++;
+	}
 	const store = createStore<TodoState>({
 		draft: '',
 		filter: 'all',
 		todos: [
-			{ id: 1, title: 'Map feature scope', done: true },
-			{ id: 2, title: 'Design task flow', done: false },
-			{ id: 3, title: 'Ship demo page', done: false }
+			{ id: seq(), title: 'Map feature scope', done: true },
+			{ id: seq(), title: 'Design task flow', done: false },
+			{ id: seq(), title: 'Ship demo page', done: false }
 		]
 	});
 
@@ -58,8 +62,7 @@
 			return;
 		}
 
-		store.update('/todos', (currentTodos) => [{ id: seq, title, done: false }, ...currentTodos]);
-		seq += 1;
+		store.update('/todos', (currentTodos) => [{ id: seq(), title, done: false }, ...currentTodos]);
 	}
 
 	function toggleTodo(index: number) {
