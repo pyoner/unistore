@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { derived, get } from 'svelte/store';
+	import { derived } from 'svelte/store';
 	import { createStore } from 'core';
 
 	type Filter = 'all' | 'active' | 'done';
@@ -47,23 +47,26 @@
 	});
 
 	function addTodo() {
-		const title = get(draft).trim();
-		const currentTodos = get(todos);
+		let title = '';
+
+		store.update('/draft', (current) => {
+			title = current.trim();
+			return title ? '' : current;
+		});
 
 		if (!title) {
 			return;
 		}
 
-		store.set('/todos', [{ id: seq, title, done: false }, ...currentTodos]);
+		store.update('/todos', (currentTodos) => [{ id: seq, title, done: false }, ...currentTodos]);
 		seq += 1;
-		store.set('/draft', '');
 	}
 
 	function toggleTodo(index: number) {
 		const path = ['todos', `${index}`, 'done'] as const;
 
 		if (store.has(path)) {
-			store.set(path, !store.get(path));
+			store.update(path, (done) => !done);
 		}
 	}
 
@@ -76,7 +79,7 @@
 	}
 
 	function clearDone() {
-		store.set('/todos', get(todos).filter((todo) => !todo.done));
+		store.update('/todos', (currentTodos) => currentTodos.filter((todo) => !todo.done));
 	}
 </script>
 
@@ -99,7 +102,7 @@
 				type="text"
 				value={$draft}
 				oninput={(event) =>
-					store.set('/draft', (event.currentTarget as HTMLInputElement).value)}
+					store.update('/draft', () => (event.currentTarget as HTMLInputElement).value)}
 				placeholder="Add a task"
 				onkeydown={(event) => {
 					if (event.key === 'Enter') {
@@ -111,17 +114,25 @@
 		</div>
 
 		<div class="filters" role="group" aria-label="Filter todos">
-			<button class:active={$filter === 'all'} type="button" onclick={() => store.set('/filter', 'all')}>
+			<button
+				class:active={$filter === 'all'}
+				type="button"
+				onclick={() => store.update('/filter', () => 'all')}
+			>
 				All
 			</button>
 			<button
 				class:active={$filter === 'active'}
 				type="button"
-				onclick={() => store.set('/filter', 'active')}
+				onclick={() => store.update('/filter', () => 'active')}
 			>
 				Active
 			</button>
-			<button class:active={$filter === 'done'} type="button" onclick={() => store.set('/filter', 'done')}>
+			<button
+				class:active={$filter === 'done'}
+				type="button"
+				onclick={() => store.update('/filter', () => 'done')}
+			>
 				Done
 			</button>
 		</div>
