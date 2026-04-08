@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - tools/*
+  - apps/apps/*
 
 catalog:
   "@types/json-pointer": ^1.0.34
