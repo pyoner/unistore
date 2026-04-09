@@ -32,7 +32,7 @@
 	});
 
 	const draft = store.bind('/draft');
-	const filter = store.select('/filter');
+	const filter = store.bind('/filter');
 	const todos = store.select('/todos');
 
 	const remaining = derived(todos, ($todos) => $todos.filter((todo) => !todo.done).length);
@@ -118,21 +118,21 @@
 			<button
 				class:active={$filter === 'all'}
 				type="button"
-				onclick={() => store.set('/filter', 'all')}
+				onclick={() => ($filter = 'all')}
 			>
 				All
 			</button>
 			<button
 				class:active={$filter === 'active'}
 				type="button"
-				onclick={() => store.set('/filter', 'active')}
+				onclick={() => ($filter = 'active')}
 			>
 				Active
 			</button>
 			<button
 				class:active={$filter === 'done'}
 				type="button"
-				onclick={() => store.set('/filter', 'done')}
+				onclick={() => ($filter = 'done')}
 			>
 				Done
 			</button>
