@@ -5,8 +5,13 @@ export type Path = readonly string[];
 export type Unsubscribe = () => void;
 export type Invalidate = () => void;
 export type Subscriber<T> = (value: T) => void;
+export type Updater<T> = (value: T) => T;
 export type Readable<T> = {
   subscribe(run: Subscriber<T>, invalidate?: Invalidate): Unsubscribe;
+};
+export type Writable<T> = Readable<T> & {
+  set(value: T): void;
+  update(updater: Updater<T>): void;
 };
 
 type Primitive = bigint | boolean | null | number | string | symbol | undefined;
@@ -100,6 +105,7 @@ export type Store<T = unknown> = {
   ): void;
   remove<K extends PointerKey<T>>(key: K): void;
   select<K extends PointerKey<T>>(key: K): Readable<PointerValue<T, K>>;
+  bind<K extends PointerKey<T>>(key: K): Writable<PointerValue<T, K>>;
 };
 
 type Subscription<T> = {
@@ -176,6 +182,31 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
     };
   }
 
+  function createReadable(key: Key): Readable<unknown> {
+    return {
+      subscribe(run: Subscriber<unknown>, invalidate?: Invalidate) {
+        run(jsonPointer.get(state as object, toLibKey(key)));
+
+        return subscribe(key, (_path, value) => {
+          invalidate?.();
+          run(value);
+        });
+      },
+    };
+  }
+
+  function createWritable(key: Key): Writable<unknown> {
+    return {
+      ...createReadable(key),
+      set(value: unknown) {
+        runtimeStore.set(key, value);
+      },
+      update(updater: Updater<unknown>) {
+        runtimeStore.update(key, updater);
+      },
+    };
+  }
+
   const runtimeStore = {
     get(key: Key) {
       return jsonPointer.get(state as object, toLibKey(key));
@@ -209,16 +240,11 @@ export function createStore<T = unknown>(initialState?: T): Store<T> {
     },
 
     select(key: Key) {
-      return {
-        subscribe(run: Subscriber<unknown>, invalidate?: Invalidate) {
-          run(jsonPointer.get(state as object, toLibKey(key)));
+      return createReadable(key);
+    },
 
-          return subscribe(key, (_path, value) => {
-            invalidate?.();
-            run(value);
-          });
-        },
-      };
+    bind(key: Key) {
+      return createWritable(key);
     },
   };
 

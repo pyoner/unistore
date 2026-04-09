@@ -31,7 +31,7 @@
 		]
 	});
 
-	const draft = store.select('/draft');
+	const draft = store.bind('/draft');
 	const filter = store.select('/filter');
 	const todos = store.select('/todos');
 
@@ -103,9 +103,7 @@
 		<div class="composer">
 			<input
 				type="text"
-				value={$draft}
-				oninput={(event) =>
-					store.set('/draft', (event.currentTarget as HTMLInputElement).value)}
+				bind:value={$draft}
 				placeholder="Add a task"
 				onkeydown={(event) => {
 					if (event.key === 'Enter') {

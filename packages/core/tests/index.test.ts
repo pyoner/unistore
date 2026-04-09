@@ -165,6 +165,45 @@ test("select returns readable-compatible keyed subscription", () => {
   expect(run).toHaveBeenCalledTimes(2);
 });
 
+test("bind returns writable-compatible keyed subscription", () => {
+  const store = createStore(createInitialState());
+  const run = vi.fn();
+  const invalidate = vi.fn();
+  const bound = store.bind("/user/name");
+
+  const unsubscribe = bound.subscribe(run, invalidate);
+
+  expect(run).toHaveBeenNthCalledWith(1, "Ada");
+
+  bound.set("Grace");
+
+  expect(invalidate).toHaveBeenCalledTimes(1);
+  expect(run).toHaveBeenNthCalledWith(2, "Grace");
+
+  bound.update((name) => `${name} Hopper`);
+
+  expect(invalidate).toHaveBeenCalledTimes(2);
+  expect(run).toHaveBeenNthCalledWith(3, "Grace Hopper");
+
+  unsubscribe();
+  bound.set("Lin");
+
+  expect(run).toHaveBeenCalledTimes(3);
+  expect(store.get("/user/name")).toBe("Lin");
+});
+
+test("bind writes notify ancestor selections", () => {
+  const store = createStore(createInitialState());
+  const userRun = vi.fn();
+
+  store.select("/user").subscribe(userRun);
+  userRun.mockClear();
+
+  store.bind("/user/name").set("Grace");
+
+  expect(userRun).toHaveBeenNthCalledWith(1, { name: "Grace", age: 36 });
+});
+
 test("throws library errors for invalid pointer strings", () => {
   const store = createStore(createInitialState()) as any;
 
@@ -186,6 +225,17 @@ test("matches library root-operation errors", () => {
     }),
   ).toThrow("Can not set the root object");
   expect(() => store.remove("")).toThrow('Invalid JSON pointer for remove: ""');
+  expect(() =>
+    store.bind("").set({
+      user: { name: "Grace", age: 36 },
+      todos: [
+        { title: "Draft", done: false },
+        { title: "Ship", done: false },
+        { title: "Celebrate", done: true },
+      ],
+    }),
+  ).toThrow("Can not set the root object");
+  expect(() => store.bind("").update((current) => current)).toThrow("Can not set the root object");
 });
 
 test("does not create a missing root container", () => {
