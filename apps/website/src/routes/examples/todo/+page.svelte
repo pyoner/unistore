@@ -51,17 +51,13 @@
 	});
 
 	function addTodo() {
-		let title = '';
-
-		store.update('/draft', (current) => {
-			title = current.trim();
-			return title ? '' : current;
-		});
+		const title = $draft.trim();
 
 		if (!title) {
 			return;
 		}
 
+		$draft = '';
 		store.update('/todos', (currentTodos) => [{ id: seq(), title, done: false }, ...currentTodos]);
 	}
 
